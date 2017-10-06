@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -50,6 +51,8 @@ import org.eclipse.kapua.app.console.module.account.shared.model.GwtAccountStrin
 import org.eclipse.kapua.app.console.module.api.shared.util.GwtKapuaCommonsModelConverter;
 import org.eclipse.kapua.broker.core.BrokerDomain;
 import org.eclipse.kapua.commons.model.id.KapuaEid;
+import org.eclipse.kapua.commons.setting.system.SystemSetting;
+import org.eclipse.kapua.commons.setting.system.SystemSettingKey;
 import org.eclipse.kapua.commons.security.KapuaSecurityUtils;
 import org.eclipse.kapua.commons.util.SystemUtils;
 import org.eclipse.kapua.locator.KapuaLocator;
@@ -83,6 +86,8 @@ import com.extjs.gxt.ui.client.data.BasePagingLoadResult;
 import com.extjs.gxt.ui.client.data.ListLoadResult;
 import com.extjs.gxt.ui.client.data.PagingLoadConfig;
 import com.extjs.gxt.ui.client.data.PagingLoadResult;
+
+import javax.xml.namespace.QName;
 
 /**
  * The server side implementation of the RPC service.
@@ -204,7 +209,7 @@ public class GwtAccountServiceImpl extends KapuaRemoteServiceServlet implements 
             accountPropertiesPairs.add(new GwtGroupedNVPair("accountInfo", "accountCreatedOn", account.getCreatedOn().toString()));
             accountPropertiesPairs.add(new GwtGroupedNVPair("accountInfo", "accountCreatedBy", userCreatedBy.getName()));
 
-            accountPropertiesPairs.add(new GwtGroupedNVPair("deploymentInfo", "deploymentBrokerURL", SystemUtils.getBrokerURI().toString()));
+            accountPropertiesPairs.add(new GwtGroupedNVPair("deploymentInfo", "deploymentBrokerURL", accountService.getConfigValues(account.getId()).get("deviceBrokerClusterUri")));
 
             accountPropertiesPairs.add(new GwtGroupedNVPair("organizationInfo", "organizationName", account.getOrganization().getName()));
             accountPropertiesPairs.add(new GwtGroupedNVPair("organizationInfo", "organizationPersonName", account.getOrganization().getPersonName()));
@@ -447,7 +452,11 @@ public class GwtAccountServiceImpl extends KapuaRemoteServiceServlet implements 
                                 }
                                 gwtParam.setMin(ad.getMin());
                                 gwtParam.setMax(ad.getMax());
-
+                                Map<String, String> gwtEntries = new HashMap<String, String>();
+                                for(Entry<QName, String> entry : ad.getOtherAttributes().entrySet()) {
+                                    gwtEntries.put(entry.getKey().toString(), entry.getValue());
+                                }
+                                gwtParam.setOtherAttributes(gwtEntries);
                                 if (!values.isEmpty()) {
                                     int cardinality = ad.getCardinality();
                                     Object value = values.get(ad.getId());
@@ -662,4 +671,8 @@ public class GwtAccountServiceImpl extends KapuaRemoteServiceServlet implements 
         return new BasePagingLoadResult<GwtAccount>(gwtAccounts, loadConfig.getOffset(), totalLength);
     }
 
+    @Override
+    public GwtAccount findRootAccount() throws GwtKapuaException {
+        return findByAccountName(SystemSetting.getInstance().getString(SystemSettingKey.SYS_ADMIN_USERNAME));
+    }
 }
