@@ -262,8 +262,9 @@ public class DatastoreUtils {
      * @param start
      * @param end
      * @return
+     * @throws DatastoreException
      */
-    public static String[] convertToDataIndexes(KapuaId scopeId, Instant start, Instant end) {
+    public static String[] convertToDataIndexes(KapuaId scopeId, Instant start, Instant end) throws DatastoreException {
         // drop partial week so start from "from + 1 week" to "end - 1 week" included
         // if the start date is not the first day of the week and the end date is not the end day of the week
         Instant startInstant = start.plusMillis(0);// smarter way to clone it
@@ -287,7 +288,9 @@ public class DatastoreUtils {
 
         List<String> indexes = new ArrayList<>();
         while (startInstant.isBefore(endInstant) || areInThesameWeek(startInstant, endInstant)) {
-            indexes.add(DatastoreUtils.getDataIndexName(scopeId, startInstant.toEpochMilli()));
+            String index = DatastoreUtils.getDataIndexName(scopeId, startInstant.toEpochMilli());
+            logger.info("Adding index: {}", index);
+            indexes.add(index);
             startInstant = startInstant.plus(7, ChronoUnit.DAYS);
         }
         //add last week of years (this algorithm can skip the last week of the year depending on the start date)
@@ -303,13 +306,15 @@ public class DatastoreUtils {
                     String indexToAdd = DatastoreUtils.getDataIndexName(scopeId, KapuaDateUtils.parseDate(dateToCheck).toInstant().toEpochMilli());
                     logger.info("Index to add {} - date {}", new Object[] { indexToAdd, dateToCheck });
                     if (!indexes.contains(indexToAdd)) {
+                        logger.info("Adding index: {}", indexToAdd);
                         indexes.add(indexToAdd);
-                        logger.info(">>> Add index {} - date {}", new Object[] { indexToAdd, dateToCheck });
+                        logger.debug(">>> Add index {} - date {}", new Object[] { indexToAdd, dateToCheck });
                     } else {
                         logger.debug("Index {} already present in the list", indexToAdd);
                     }
                 } catch (ParseException e) {
-                    logger.warn("Cannot evaluate week of the year for the date", e);
+                    logger.error("Cannot evaluate week of the year for the date", e);
+                    throw new DatastoreException(DatastoreErrorCodes.INTERNAL_ERROR, e);
                 }
             }
         }
